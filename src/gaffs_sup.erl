@@ -19,7 +19,7 @@
 %% @doc gaffs top level supervisor.
 %% @end
 %%%-------------------------------------------------------------------
-
+%% @private
 -module(gaffs_sup).
 
 -behaviour(supervisor).
@@ -42,4 +42,4 @@ start_link() -> supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 %% Supervisor callbacks
 %%====================================================================
 
-init([]) -> {ok, {{one_for_all, 0, 1}, [{gaffs, {gaffs, start_link, []}, permanent, 5000, worker, [gaffs]}]}}.
+init([]) -> {ok, {{one_for_all, 0, 1}, [{gaffs_srv, {gaffs_srv, start_link, []}, permanent, 5000, worker, [gaffs_srv]}]}}.

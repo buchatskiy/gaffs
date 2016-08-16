@@ -20,7 +20,7 @@
 %% @doc gaffs public API
 %% @end
 %%%-------------------------------------------------------------------
-
+%% @private
 -module(gaffs_app).
 
 -behaviour(application).
@@ -32,6 +32,10 @@
 %% API
 %%====================================================================
 
-start(_StartType, _StartArgs) -> gaffs_sup:start_link().
+start(_StartType, _StartArgs) ->
+    gaffs_cache:start(),
+    gaffs_sup:start_link().
 
-stop(_State) -> ok.
+stop(_State) ->
+    gaffs_cache:stop(),
+    ok.
