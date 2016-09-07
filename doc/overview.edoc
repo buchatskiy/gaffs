@@ -37,13 +37,13 @@ ok = gaffs:register(HookName, Module, Fun, Arity, Options).
 ok = gaffs:register(HookName, Module, Fun, Arity, Options, Priority).
 '''
 <h4>
-<p> Run all registered hooks for HookName with Args, ignore exceptions. Return list of {MFA, Res}.</p>
+<p> Run all registered hooks for HookName with Args++[Options], ignore exceptions. Return list of {MFA, Res}.</p>
 </h4>
 ```
 ListOfResults = gaffs:map(HookName, Args).
 '''
 <h4>
-<p> Run all registered hooks ordered by priority for HookName with Args++[Acc]. Return accumulated result.</p>
+<p> Run all registered hooks ordered by priority for HookName with Args++[Options, Acc]. Return accumulated result.</p>
 </h4>
 ```
 {ok, NewAcc} = gaffs:foldl(HookName, Args, Acc).

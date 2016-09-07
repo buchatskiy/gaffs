@@ -19,20 +19,24 @@ augment your application by adding hooks to your application aka
 ```
 ok = gaffs:start().
 ```
-### Save hook with HookName like Fun and default Priority = 0.
+### Save hook with HookName like Fun and default Options = [] and Priority = 0.
 ```
 ok = gaffs:register(Module, Fun, Arity).
 ok = gaffs:register(Fun, Module, Fun, Arity). %% this is the same
 ```
-### Save hook with HookName and specific Priority.
+### Save hook with HookName and Options.
 ```
-ok = gaffs:register(HookName, Module, Fun, Arity, Priority).
+ok = gaffs:register(HookName, Module, Fun, Arity, Options).
 ```
-### Run all registered hooks for HookName with Args, ignore exceptions. Return list of {MFA, Res}.
+### Save hook with HookName, Options and specific Priority.
 ```
-ListOfResults = gaffs:all(HookName, Args).
+ok = gaffs:register(HookName, Module, Fun, Arity, Options, Priority).
 ```
-### Run all registered hooks ordered by priority for HookName with Args++[Acc]. Return accumulated result.
+### Run all registered hooks for HookName with Args++[Options], ignore exceptions. Return list of {MFA, Res}.
+```
+ListOfResults = gaffs:map(HookName, Args).
+```
+### Run all registered hooks ordered by priority for HookName with Args++[Options, Acc]. Return accumulated result.
 ```
 {ok, NewAcc} = gaffs:foldl(HookName, Args, Acc).
 ```
@@ -54,7 +58,8 @@ ListOfResults = gaffs:all(HookName, Args).
             {hook_name,
               [
                 {module, fun, arity},
-                {module, fun, arity, priority}
+                {module, fun, arity, _Options = []},
+                {module, fun, arity, _Options = [], priority}
               ]}
         ]},
     ...
