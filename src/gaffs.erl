@@ -27,6 +27,7 @@
         register/4,
         register/5,
         register/6,
+        register/7,
         mregister/1,
         unregister/3,
         unregister/4,
@@ -35,7 +36,7 @@
 
 %% API for running hooks
 -export([
-        all/2,
+        map/2,
         foldl/3
     ]).
 
@@ -56,20 +57,25 @@ stop() ->
 register(Module, Fun, Arity) ->
     register(_HookName = Fun, Module, Fun, Arity).
 
-%% @doc Save hook for HookName with default Priority = 0.
+%% @doc Save hook for HookName with default Options = [].
 -spec register(HookName::any(), Module::atom(), Fun::atom(), Arity::non_neg_integer()) -> ok | {error, Reason::atom()}.
 register(HookName, Module, Fun, Arity) ->
-    register(HookName, Module, Fun, Arity, _Priority = 0).
+    register(HookName, Module, Fun, Arity, _Options = []).
+
+%% @doc Save hook for HookName with default Priority = 0.
+-spec register(HookName::any(), Module::atom(), Fun::atom(), Arity::non_neg_integer(), Options::list()) -> ok | {error, Reason::atom()}.
+register(HookName, Module, Fun, Arity, Options) ->
+    register(HookName, Module, Fun, Arity, Options, _Priority = 0).
 
 %% @doc Save hook for HookName with specified Priority.
--spec register(HookName::any(), Module::atom(), Fun::atom(), Arity::non_neg_integer(), Priority::integer()) -> ok | {error, Reason::atom()}.
-register(HookName, Module, Fun, Arity, Priority) ->
-    gaffs_cache:insert(HookName, {Module, Fun, Arity}, Priority).
+-spec register(HookName::any(), Module::atom(), Fun::atom(), Arity::non_neg_integer(), Options::list(), Priority::integer()) -> ok | {error, Reason::atom()}.
+register(HookName, Module, Fun, Arity, Options, Priority) ->
+    gaffs_cache:insert(HookName, {Module, Fun, Arity}, Options, Priority).
 
 %% @doc Same as previous, but automatically delete hook if Pid dies.
--spec register(HookName::any(), Module::atom(), Fun::atom(), Arity::non_neg_integer(), Priority::integer(), Pid::pid()) -> ok | {error, Reason::atom()}.
-register(HookName, Module, Fun, Arity, Priority, Pid) ->
-    case register(HookName, Module, Fun, Arity, Priority) of
+-spec register(HookName::any(), Module::atom(), Fun::atom(), Arity::non_neg_integer(), Options::list(), Priority::integer(), Pid::pid()) -> ok | {error, Reason::atom()}.
+register(HookName, Module, Fun, Arity, Options, Priority, Pid) ->
+    case register(HookName, Module, Fun, Arity, Options, Priority) of
         ok -> gaffs_srv:monitor(Pid, HookName, {Module, Fun, Arity}, Priority);
         Error -> Error
     end.
@@ -95,12 +101,12 @@ unregister(HookName, Module, Fun, Arity, Priority) ->
     gaffs_cache:delete(HookName, {Module, Fun, Arity}, Priority).
 
 %% @doc Run all hooks with Args for HookName, ignore exceptions.
--spec all(HookName::any(), Args::list()) -> [{{Module::atom(), Fun::atom(), Arity::non_neg_integer()}, Res::{ok, any()} | {error, unknown}}].
-all(HookName, Args) ->
+-spec map(HookName::any(), Args::list()) -> [{{Module::atom(), Fun::atom(), Arity::non_neg_integer()}, Res::{ok, any()} | {error, unknown}}].
+map(HookName, Args) ->
     {ok, Hooks} = gaffs_cache:lookup(HookName),
     lists:map(
-        fun(#hook{module = Module, func = Fun, arity = Arity}) ->
-            Res = try {ok, apply(Module, Fun, Args)}
+        fun(#hook{module = Module, func = Fun, arity = Arity, options = Options}) ->
+            Res = try {ok, apply(Module, Fun, Args++[Options])}
             catch
                 C:E ->
                     Stacktrace = erlang:get_stacktrace(),
@@ -127,8 +133,8 @@ foldl(HookName, Args, Acc) ->
 
 internal_foldl([], _BaseArgs, Acc) ->
     {ok, Acc};
-internal_foldl([#hook{module = Module, func = Fun, arity = Arity} | T], BaseArgs, Acc) ->
-    Args = BaseArgs ++ [Acc],
+internal_foldl([#hook{module = Module, func = Fun, arity = Arity, options = Options} | T], BaseArgs, Acc) ->
+    Args = BaseArgs ++ [Options, Acc],
     try
         case apply(Module, Fun, Args) of
             stop -> {stop, Acc, {Module, Fun}};

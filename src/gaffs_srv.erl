@@ -86,7 +86,7 @@ handle_call({insert_hook, Table, HookName, NewHook}, _From, State) ->
         [{_HookName, Value}] -> Value;
         [] -> []
     end,
-    NewHooks = lists:keysort(#hook.priority, lists:usort([NewHook | Hooks])),
+    NewHooks = lists:keysort(#hook.priority, [NewHook | delete_hook_with_same_priority(NewHook, Hooks)]),
     ets:insert(Table, [{HookName, NewHooks}]),
     {reply, ok, State};
 
@@ -95,7 +95,7 @@ handle_call({delete_hook, Table, HookName, Hook}, _From, State) ->
         [{_HookName, Value}] -> Value;
         [] -> []
     end,
-    NewHooks = lists:delete(Hook, Hooks),
+    NewHooks = delete_hook_with_same_priority(Hook, Hooks),
     ets:insert(Table, [{HookName, NewHooks}]),
     {reply, ok, State};
 
@@ -107,7 +107,10 @@ handle_call({mregister, Table, Hooks}, _From, State) ->
                     [{_HookName, Value}] -> Value;
                     [] -> []
                 end,
-                NewHooks = lists:keysort(#hook.priority, lists:usort(CheckedHooks ++ OldHooks)),
+                F = fun(Hook, Acc) ->
+                    [Hook | delete_hook_with_same_priority(Hook, Acc)]
+                end,
+                NewHooks = lists:keysort(#hook.priority, lists:foldl(F, OldHooks, CheckedHooks)),
                 ets:insert(Table, [{HookName, NewHooks}]),
                 {HookName, ok}
         end,
@@ -143,6 +146,13 @@ get_env(Application, Par, Def) ->
         undefined -> Def;
         {ok, Res} -> Res
     end.
+
+delete_hook_with_same_priority(#hook{module = Module, func = Fun, arity = Arity, priority = Priority}, Hooks) ->
+    F =  fun(#hook{module = M, func = F, arity = A, priority = P}, Acc)
+                when M == Module andalso F == Fun andalso A == Arity andalso P == Priority -> Acc;
+            (#hook{} = Hook, Acc) -> [Hook | Acc]
+    end,
+    lists:foldl(F, [], Hooks).
 
 init_hooks(Pid) ->
     try

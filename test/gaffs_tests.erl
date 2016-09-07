@@ -16,6 +16,7 @@
 -define(ARG, 2).
 -define(ACC, 3).
 -define(SETUP(F), {setup, fun start/0, fun stop/1, F}).
+-define(DEFAULT_OPTIONS, [true]).
 
 all_test_() ->
     error_logger:tty(false),
@@ -48,7 +49,7 @@ all_mregister(_Params) ->
         check_mregister_bad_fun(),
         mregister(),
         check_mregister(),
-        check_all()
+        check_map()
     ].
 
 %%%%%%%%%%%%%%%%%%%%
@@ -56,28 +57,28 @@ all_mregister(_Params) ->
 %%%%%%%%%%%%%%%%%%%%
 
 register() ->
-    ?_assertEqual(ok, gaffs:register(?MODULE, ?TEST_FUN, 0)).
+    ?_assertEqual(ok, gaffs:register(?MODULE, ?TEST_FUN, 1)).
 
 error_register_no_module() ->
-    ?_assertEqual({error, no_module}, gaffs:register(fake_module, ?TEST_FUN, 0)).
+    ?_assertEqual({error, no_module}, gaffs:register(fake_module, ?TEST_FUN, 1)).
 
 error_register_no_func() ->
     ?_assertEqual({error, no_func}, gaffs:register(?MODULE, fake_func, 0)).
 
 check_register() ->
-    ?_assertEqual({ok, [#hook{module = ?MODULE, func = ?TEST_FUN}]}, gaffs_cache:lookup(?HOOK_NAME)).
+    ?_assertEqual({ok, [#hook{module = ?MODULE, func = ?TEST_FUN, arity = 1}]}, gaffs_cache:lookup(?HOOK_NAME)).
 
 unregister() ->
-    ?_assertEqual(ok, gaffs:unregister(?MODULE, ?TEST_FUN, 0)).
+    ?_assertEqual(ok, gaffs:unregister(?MODULE, ?TEST_FUN, 1)).
 
 check_unregister() ->
     ?_assertEqual({ok, []}, gaffs_cache:lookup(?HOOK_NAME)).
 
 register_with_pid() ->
-    ?_assertEqual(ok, gaffs:register(?HOOK_NAME, ?MODULE, ?TEST_FUN, 0, _Priority = 0, spawn(fun() -> timer:sleep(20), exit(kill) end))).
+    ?_assertEqual(ok, gaffs:register(?HOOK_NAME, ?MODULE, ?TEST_FUN, 1, ?DEFAULT_OPTIONS, _Priority = 0, spawn(fun() -> timer:sleep(20), exit(kill) end))).
 
 check_register_with_pid() ->
-    ?_assertEqual({ok, [#hook{module = ?MODULE, func = ?TEST_FUN}]}, gaffs_cache:lookup(?HOOK_NAME)).
+    ?_assertEqual({ok, [#hook{module = ?MODULE, func = ?TEST_FUN, arity = 1, options = ?DEFAULT_OPTIONS}]}, gaffs_cache:lookup(?HOOK_NAME)).
 
 check_pid_die() ->
     Fun = fun() -> timer:sleep(20), gaffs_cache:lookup(?HOOK_NAME) end,
@@ -99,51 +100,51 @@ check_mregister_bad_hook() ->
     ?_assertEqual([{?HOOK_NAME, {error, bad_hook}}], gaffs:mregister([{?HOOK_NAME, [some_bad_hook]}])).
 
 check_mregister_bad_module() ->
-    ?_assertEqual([{?HOOK_NAME, {error, no_module}}], gaffs:mregister([{?HOOK_NAME, [{some_bad_module, hook, 0}]}])).
+    ?_assertEqual([{?HOOK_NAME, {error, no_module}}], gaffs:mregister([{?HOOK_NAME, [{some_bad_module, hook, 1}]}])).
 
 check_mregister_bad_fun() ->
     ?_assertEqual([{?HOOK_NAME, {error, no_func}}], gaffs:mregister([{?HOOK_NAME, [{?MODULE, some_bad_fun, 0}]}])).
 
 mregister() ->
     Priorities = [0,1,2,2],
-    Hooks = [{?HOOK_NAME, [{?MODULE, ?TEST_FUN, 0, Priority} || Priority <- Priorities]}],
-    ExceptionHook = {?HOOK_NAME, [{?MODULE, hook_exception, 0, 3}]},
-    ?_assertEqual([{?HOOK_NAME, ok}, {?HOOK_NAME, ok}], gaffs:mregister(Hooks++[ExceptionHook])).
+    Hooks = [{?HOOK_NAME, [{?MODULE, ?TEST_FUN, 1, ?DEFAULT_OPTIONS, Priority} || Priority <- Priorities]}],
+    ExceptionHook = {?HOOK_NAME, [{?MODULE, hook_exception, 1, ?DEFAULT_OPTIONS, 3}]},
+    ?_assertEqual([{?HOOK_NAME, ok}, {?HOOK_NAME, ok}, {?HOOK_NAME, ok}], gaffs:mregister(Hooks++Hooks++[ExceptionHook])). %% only one with same priority can be registered
 
 check_mregister() ->
     Priorities = [0,1,2],
-    Hooks = [#hook{module = ?MODULE, func = ?TEST_FUN, priority = Priority} || Priority <- Priorities],
-    ExceptionHook = #hook{module = ?MODULE, func = hook_exception, priority = 3},
+    Hooks = [#hook{module = ?MODULE, func = ?TEST_FUN, arity = 1, options = ?DEFAULT_OPTIONS, priority = Priority} || Priority <- Priorities],
+    ExceptionHook = #hook{module = ?MODULE, func = hook_exception, arity = 1, options = ?DEFAULT_OPTIONS, priority = 3},
     ?_assertEqual({ok, Hooks++[ExceptionHook]}, gaffs_cache:lookup(?HOOK_NAME)).
 
-check_all() ->
-    Res = {{?MODULE, ?TEST_FUN, 0}, {ok, []}},
-    ExceptionRes = {{?MODULE, hook_exception, 0}, {error,unknown}},
-    ?_assertEqual([Res, Res, Res, ExceptionRes], gaffs:all(?HOOK_NAME, [])).
+check_map() ->
+    Res = {{?MODULE, ?TEST_FUN, 1}, {ok, []}},
+    ExceptionRes = {{?MODULE, hook_exception, 1}, {error,unknown}},
+    ?_assertEqual([Res, Res, Res, ExceptionRes], gaffs:map(?HOOK_NAME, [])).
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPER FUNCTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%
-hook() -> [].
+hook(?DEFAULT_OPTIONS) -> [].
 
-hook_exception() -> error(some_exception).
+hook_exception(?DEFAULT_OPTIONS) -> error(some_exception).
 
 all() -> gaffs:register(?MODULE, ?TEST_FUN, 0).
 
-foldl(Value, Acc) -> {ok, Value+Acc}.
+foldl(Value, ?DEFAULT_OPTIONS, Acc) -> {ok, Value+Acc}.
 
-foldl_stop(_Value, _Acc) -> stop.
+foldl_stop(_Value, ?DEFAULT_OPTIONS, _Acc) -> stop.
 
-foldl_stop_acc(Value, Acc) -> {stop, Value+Acc}.
+foldl_stop_acc(Value, ?DEFAULT_OPTIONS, Acc) -> {stop, Value+Acc}.
 
 reg_base_foldl() ->
     Priorities = [0,1,2,2], %% only one with same priority can be registered, so only three will be registered
-    [ok = gaffs:register(?HOOK_NAME_FOLDL, ?MODULE, ?TEST_FUN_FOLDL, 2, Priority) || Priority <- Priorities].
+    [ok = gaffs:register(?HOOK_NAME_FOLDL, ?MODULE, ?TEST_FUN_FOLDL, 3, ?DEFAULT_OPTIONS, Priority) || Priority <- Priorities].
 
 reg_base_foldl(FunName) ->
     reg_base_foldl(),
-    ok = gaffs:unregister(?HOOK_NAME_FOLDL, ?MODULE, ?TEST_FUN_FOLDL, 2, 1), %% change one fun name
-    ok = gaffs:register(?HOOK_NAME_FOLDL, ?MODULE, FunName, 2, 1). %% to another
+    ok = gaffs:unregister(?HOOK_NAME_FOLDL, ?MODULE, ?TEST_FUN_FOLDL, 3, 1), %% change one fun name
+    ok = gaffs:register(?HOOK_NAME_FOLDL, ?MODULE, FunName, 3, ?DEFAULT_OPTIONS, 1). %% to another
 
 start() ->
     gaffs:start(),

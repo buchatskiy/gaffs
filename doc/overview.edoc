@@ -18,23 +18,29 @@
 ok = gaffs:start().
 '''
 <h4>
-<p> Save hook with HookName like Fun and default Priority = 0.</p>
+<p> Save hook with HookName like Fun and default Options = [] and Priority = 0.</p>
 </h4>
 ```
 ok = gaffs:register(Module, Fun, Arity).
 ok = gaffs:register(Fun, Module, Fun, Arity). %% this is the same
 '''
 <h4>
-<p> Save hook with HookName and specific Priority.</p>
+<p> Save hook with HookName and Options.</p>
 </h4>
 ```
-ok = gaffs:register(HookName, Module, Fun, Arity, Priority).
+ok = gaffs:register(HookName, Module, Fun, Arity, Options).
+'''
+<h4>
+<p> Save hook with HookName, Options and specific Priority.</p>
+</h4>
+```
+ok = gaffs:register(HookName, Module, Fun, Arity, Options, Priority).
 '''
 <h4>
 <p> Run all registered hooks for HookName with Args, ignore exceptions. Return list of {MFA, Res}.</p>
 </h4>
 ```
-ListOfResults = gaffs:all(HookName, Args).
+ListOfResults = gaffs:map(HookName, Args).
 '''
 <h4>
 <p> Run all registered hooks ordered by priority for HookName with Args++[Acc]. Return accumulated result.</p>
@@ -64,7 +70,8 @@ ListOfResults = gaffs:all(HookName, Args).
             {hook_name,
               [
                 {module, fun, arity},
-                {module, fun, arity, priority}
+                {module, fun, arity, _Options = []},
+                {module, fun, arity, _Options = [], priority}
               ]}
         ]},
     ...

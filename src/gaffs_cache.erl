@@ -21,7 +21,7 @@
 
 -export([
         start/0,
-        insert/3,
+        insert/4,
         mregister/1,
         lookup/1,
         delete/3,
@@ -41,11 +41,11 @@ start() ->
     ets:new(?TABLE, [public, named_table, set]).
 
 %% @doc Save new hook for HookName.
--spec insert(HookName::any(), MFA::tuple(), Priority::integer()) -> ok | {error, binary()}.
-insert(HookName, {_Module, _Fun, _Arity} = MFA, Priority) ->
+-spec insert(HookName::any(), MFA::tuple(), Options::list(), Priority::integer()) -> ok | {error, binary()}.
+insert(HookName, {_Module, _Fun, _Arity} = MFA, Options, Priority) ->
     case check_mfa(MFA) of
         ok ->
-            gaffs_srv:insert_hook(?TABLE, HookName, get_hook(MFA, Priority)),
+            gaffs_srv:insert_hook(?TABLE, HookName, get_hook(MFA, Priority, Options)),
             ok;
         {error, _} = E ->
             E
@@ -98,13 +98,18 @@ get_hook({Module, Fun, Arity}) ->
     get_hook({Module, Fun, Arity}, 0).
 
 get_hook({Module, Fun, Arity}, Priority) ->
-    #hook{module = Module, func = Fun, arity = Arity, priority = Priority}.
+    get_hook({Module, Fun, Arity}, Priority, []).
 
-get_hook_with_check(({_Module, _Fun, _Arity} = MFA)) ->
+get_hook({Module, Fun, Arity}, Priority, Options) ->
+    #hook{module = Module, func = Fun, arity = Arity, options = Options, priority = Priority}.
+
+get_hook_with_check({_Module, _Fun, _Arity} = MFA) ->
     get_hook_with_check(get_hook(MFA));
-get_hook_with_check(({Module, Fun, Arity, Priority})) ->
+get_hook_with_check({Module, Fun, Arity, Options}) ->
+    get_hook_with_check({Module, Fun, Arity, Options, 0});
+get_hook_with_check({Module, Fun, Arity, Options, Priority}) ->
     MFA = {Module, Fun, Arity},
-    get_hook_with_check(get_hook(MFA, Priority));
+    get_hook_with_check(get_hook(MFA, Priority, Options));
 get_hook_with_check(#hook{module = Module, func = Fun, arity = Arity} = Hook) ->
     case check_mfa({Module, Fun, Arity}) of
         ok -> {ok, Hook};
@@ -114,12 +119,9 @@ get_hook_with_check(_) ->
     {error, bad_hook}.
 
 check_mfa({Module, Fun, Arity}) ->
-    case code:which(Module) of
-        non_existing ->
-            {error, no_module};
-        _ ->
-            case erlang:function_exported(Module, Fun, Arity) of
-                true -> ok;
-                false -> {error, no_func}
-            end
+    try lists:member({Fun, Arity}, proplists:get_value(exports, Module:module_info(), [])) of
+        false -> {error, no_func};
+        true -> ok
+    catch
+        _:_ -> {error, no_module}
     end.

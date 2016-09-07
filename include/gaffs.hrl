@@ -6,6 +6,7 @@
         module,
         func,
         arity = 0,
+        options = [],
         priority = 0
     }).
 
