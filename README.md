@@ -36,6 +36,10 @@ ok = gaffs:register(HookName, Module, Fun, Arity, Options, Priority).
 ```
 ListOfResults = gaffs:map(HookName, Args).
 ```
+### Run asynchronously all registered hooks for HookName with Args++[Options], ignore exceptions.
+```
+ok = gaffs:foreach(HookName, Args).
+```
 ### Run all registered hooks ordered by priority for HookName with Args++[Options, Acc]. Return accumulated result.
 ```
 {ok, NewAcc} = gaffs:foldl(HookName, Args, Acc).
