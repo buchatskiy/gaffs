@@ -49,7 +49,8 @@ all_mregister(_Params) ->
         check_mregister_bad_fun(),
         mregister(),
         check_mregister(),
-        check_map()
+        check_map(),
+        check_foreach()
     ].
 
 %%%%%%%%%%%%%%%%%%%%
@@ -121,6 +122,9 @@ check_map() ->
     Res = {{?MODULE, ?TEST_FUN, 1}, {ok, []}},
     ExceptionRes = {{?MODULE, hook_exception, 1}, {error,unknown}},
     ?_assertEqual([Res, Res, Res, ExceptionRes], gaffs:map(?HOOK_NAME, [])).
+
+check_foreach() ->
+    ?_assertEqual(ok, gaffs:foreach(?HOOK_NAME, [])).
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPER FUNCTIONS %%%

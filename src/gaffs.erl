@@ -37,6 +37,7 @@
 %% API for running hooks
 -export([
         map/2,
+        foreach/2,
         foldl/3
     ]).
 
@@ -116,6 +117,20 @@ map(HookName, Args) ->
             end,
             {{Module, Fun, Arity}, Res}
         end, Hooks).
+
+%% @doc Run asynchronously all hooks with Args for HookName, ignore exceptions.
+-spec foreach(HookName::any(), Args::list()) -> ok.
+foreach(HookName, Args) ->
+    {ok, Hooks} = gaffs_cache:lookup(HookName),
+    proc_lib:spawn(fun() -> lists:foreach(
+        fun(#hook{module = Module, func = Fun, options = Options}) ->
+            try apply(Module, Fun, Args++[Options])
+            catch
+                _:_ -> ok
+            end
+        end, Hooks)
+    end),
+    ok.
 %%--------------------------------------------------------------------
 %% @doc
 %% Run all hooks with Args++Acc for HookName ordered by priority, return accumulated result.
